@@ -1,46 +1,52 @@
-// src/controllers/voteController.ts
-import { PrismaClient } from "@prisma/client";
+// src/controllers/vote.controller.ts
 import { Request, Response } from "express";
-import { io } from "../utils/socket";
+import { PrismaClient } from "@prisma/client";
+import { emitPollUpdate } from "../utils/socket";
 
 const prisma = new PrismaClient();
 
-export const castVote = async (req: Request, res: Response) => {
+export async function castVote(req: Request, res: Response) {
   const { userId, optionId } = req.body;
 
   try {
     console.log("Vote request received:", req.body);
 
-    // Validate user
+    // validate user
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) return res.status(400).json({ error: "Invalid userId" });
 
-    // Validate option
+    // validate option (and get pollId)
     const option = await prisma.pollOption.findUnique({ where: { id: optionId } });
     if (!option) return res.status(400).json({ error: "Invalid optionId" });
 
-    // Create vote
-    const vote = await prisma.vote.create({
-      data: { userId, optionId },
+    // prevent duplicate vote by same user in the same poll
+    const existingVote = await prisma.vote.findFirst({
+      where: { userId, option: { pollId: option.pollId } },
     });
+    if (existingVote) return res.status(400).json({ error: "User already voted in this poll" });
+
+    // create vote
+    const vote = await prisma.vote.create({ data: { userId, optionId } });
     console.log("✅ Vote created:", vote);
 
-    // Fetch updated poll with votes
+    // fetch updated poll with votes
     const updatedPoll = await prisma.poll.findUnique({
       where: { id: option.pollId },
       include: { options: { include: { votes: true } } },
     });
 
-    // Emit update to WebSocket room
-    io.to(`poll_${option.pollId}`).emit("poll_update", updatedPoll);
-    console.log("📢 Poll update emitted for pollId:", option.pollId);
+    // safe emit
+    if (updatedPoll) {
+      emitPollUpdate(updatedPoll);
+      console.log("📢 Poll update emitted for pollId:", option.pollId);
+    }
 
-    res.status(200).json(vote);
+    return res.status(200).json(vote);
   } catch (err: any) {
     console.error("❌ Vote error:", err);
-    if (err.code === "P2002") {
+    if (err?.code === "P2002") {
       return res.status(400).json({ error: "User already voted for this option" });
     }
-    res.status(500).json({ error: "Something went wrong" });
+    return res.status(500).json({ error: "Something went wrong" });
   }
-};
+}
