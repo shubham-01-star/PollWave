@@ -1,33 +1,3 @@
-// import { Response } from "express";
-// import { PrismaClient } from "@prisma/client";
-// import { AuthRequest } from "../middleware/auth";
-
-// const prisma = new PrismaClient();
-
-// export async function createPoll(req: AuthRequest, res: Response) {
-//   const { question, options } = req.body;
-//   const poll = await prisma.poll.create({
-//     data: {
-//       question,
-//       isPublished: true,
-//       creatorId: req.userId!,
-//       options: { create: options.map((text: string) => ({ text })) },
-//     },
-//     include: { options: true },
-//   });
-//   res.json(poll);
-// }
-
-// export async function getPoll(req: AuthRequest, res: Response) {
-//   const pollId = Number(req.params.id);
-//   const poll = await prisma.poll.findUnique({
-//     where: { id: pollId },
-//     include: { options: { include: { votes: true } } },
-//   });
-//   res.json(poll);
-// }
-
-
 import { Response } from "express";
 import { PrismaClient } from "@prisma/client";
 import { AuthRequest } from "../middleware/auth";

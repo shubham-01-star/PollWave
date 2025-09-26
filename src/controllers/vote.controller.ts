@@ -1,4 +1,3 @@
-// src/controllers/vote.controller.ts
 import { Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
 import { emitPollUpdate } from "../utils/socket";
